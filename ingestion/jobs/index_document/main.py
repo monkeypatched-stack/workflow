@@ -72,4 +72,4 @@ for kafka_message in kafka_consumer:
     decoded_message = kafka_message.value.decode('utf-8')
     print(f"Received: {decoded_message}")
     kafka_data = [decoded_message]
-    # process_data(kafka_data=kafka_data)
+    process_data(kafka_data=kafka_data)

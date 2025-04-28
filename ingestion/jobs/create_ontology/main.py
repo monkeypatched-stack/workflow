@@ -69,7 +69,7 @@ def consume_kafka_messages():
     for message in consumer:
         print(f"Received message: {message.value.decode('utf-8')}")
         kafka_data = [message.value.decode('utf-8')]
-        # process_data(kafka_data=kafka_data)
+        process_data(kafka_data=kafka_data)
 
 # Start Kafka consumer in a separate thread
 kafka_thread = threading.Thread(target=consume_kafka_messages)
