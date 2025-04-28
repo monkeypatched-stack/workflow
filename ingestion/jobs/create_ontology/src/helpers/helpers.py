@@ -33,7 +33,6 @@ def split_content(content, batch_size):
     num_batches = math.ceil(len(content) / batch_size)
     return [content[i * batch_size : (i + 1) * batch_size] for i in range(num_batches)]
 
-
 # -----------------------------
 # Batch Add to Neo4j
 # -----------------------------
@@ -52,15 +51,16 @@ async def extract_ontology(pdf_text):
     """Extract ontology using LLM and store in Neo4j."""
         # get the index for the content
     response = post_to_llm(get_the_index_retrieval_prompt(pdf_text))
+    logging.info(response.json())
 
     content = response.json()["choices"][0]["message"]["content"]
-
     logging.info(content)
 
     for attempt in range(3):
         try:
             response = post_to_llm(get_ontology_prompt(content))
-            if response.status_code == 200:
+            logging.info(response.json())
+            if response.status_code != 200:
                 break
         except Exception as e:
             logging.error(f"Retry {attempt + 1} failed: {e}")
@@ -115,7 +115,8 @@ async def extract_ontology(pdf_text):
 # -----------------------------
 async def fetch_entity_details(pdf_text):
     """Fetch and extract ontology details from text."""
-    chunks = split_content(pdf_text, 2500)
+    logging.info(pdf_text)
+    chunks = split_content(pdf_text, 500)
     for chunk in chunks:
         await extract_ontology(chunk)
     logging.info(f"Processed {len(chunks)} chunks successfully.")

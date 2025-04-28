@@ -39,12 +39,12 @@ async def callback(ch, method, properties, body):
         body=message,
         properties=pika.BasicProperties(delivery_mode=2))
     print(message)
-    ch.basic_ack(delivery_tag=method.delivery_tag)
-
+ 
 channel.basic_qos(prefetch_count=1)
 channel.basic_consume(
     queue=queue_name,
-    on_message_callback=lambda ch, method, properties, body: asyncio.run(callback(ch, method, properties, body))
+    on_message_callback=lambda ch, method, properties, body: asyncio.run(callback(ch, method, properties, body)),
+    auto_ack=True
 )
 
 channel.start_consuming()

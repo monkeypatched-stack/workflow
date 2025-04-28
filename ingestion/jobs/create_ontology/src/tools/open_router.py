@@ -15,7 +15,7 @@ def post_to_llm(message):
             "Content-Type": "application/json"
         },
         data=json.dumps({
-                "model": "meta-llama/llama-4-maverick:free",
+                "model": "openai/o4-mini",
                 "messages": [
                     {
                         "role": "user",

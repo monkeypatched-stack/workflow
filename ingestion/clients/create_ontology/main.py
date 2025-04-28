@@ -25,21 +25,22 @@ channel.queue_bind(exchange='task_exchange', queue=queue_name, routing_key='crea
 
 print(' [*] Waiting for messages. To exit press CTRL+C')
 
-async def callback(ch, method, properties, body):
+async def callback(ch, method, body):
     time.sleep(body.count(b'.'))
     # must process the uploaded document 
     message = body.decode()
     channel.basic_publish(
-        exchange='',
-        routing_key='create_ontology_task',
-        body=message,
-        properties=pika.BasicProperties(delivery_mode=2))
+            exchange='',
+            routing_key='create_ontology_task',
+            body=message,
+            properties=pika.BasicProperties(delivery_mode=2)) 
     print(message)
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+
 channel.basic_qos(prefetch_count=1)
 channel.basic_consume(
     queue=queue_name,
-    on_message_callback=lambda ch, method, properties, body: asyncio.run(callback(ch, method, properties, body))
+    on_message_callback=lambda ch, method, properties, body: asyncio.run(callback(ch, method, body)),
+    auto_ack=True
 )
 
 channel.start_consuming()
