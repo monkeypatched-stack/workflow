@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import sys
+import time
 
 from kafka import KafkaConsumer
 from pyflink.common import WatermarkStrategy, Encoder, Types
@@ -73,3 +74,4 @@ for kafka_message in kafka_consumer:
     print(f"Received: {decoded_message}")
     kafka_data = [decoded_message]
     process_data(kafka_data=kafka_data)
+    time.sleep(1)

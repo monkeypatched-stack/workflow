@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import time
 import pika
 from kafka import KafkaProducer
 import asyncio
@@ -18,6 +19,7 @@ channel.queue_declare(queue='create_ontology_task_queue', durable=True)
 
 # Kafka setup
 producer = KafkaProducer(bootstrap_servers='localhost:9092')
+producer.flush()
 
 print(' [*] Waiting for messages. To exit press CTRL+C')
 
@@ -26,8 +28,9 @@ async def callback(ch, method, properties, body):
     print(message)
     producer.send('create_ontology_topic', message.encode('utf-8'))
     await asyncio.sleep(body.count(b'.'))  # Non-blocking sleep
+    await asyncio.sleep(10)
 
-channel.basic_qos(prefetch_count=1)
-channel.basic_consume(queue='create_ontology_task_queue', on_message_callback=lambda ch, method, properties, body: asyncio.run(callback(ch, method, properties, body)), auto_ack=True)
-
-channel.start_consuming()
+while True:
+    channel.basic_qos(prefetch_count=1)
+    channel.basic_consume(queue='create_ontology_task_queue', on_message_callback=lambda ch, method, properties, body: asyncio.run(callback(ch, method, properties, body)), auto_ack=True)
+    channel.start_consuming()

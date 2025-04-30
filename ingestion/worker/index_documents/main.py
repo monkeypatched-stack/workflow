@@ -27,9 +27,10 @@ async def callback(ch, method, properties, body):
     message = body.decode()
     print(message)
     producer.send('indexing_topic', message.encode('utf-8'))
-    time.sleep(body.count(b'.'))
+    await asyncio.sleep(body.count(b'.'))
+    await asyncio.sleep(10)
 
-channel.basic_qos(prefetch_count=1)
-channel.basic_consume(queue='index_document_task_queue', on_message_callback=lambda ch, method, properties, body: asyncio.run(callback(ch, method, properties, body)), auto_ack=True)
-
-channel.start_consuming()
+while True:
+    channel.basic_qos(prefetch_count=1)
+    channel.basic_consume(queue='index_document_task_queue', on_message_callback=lambda ch, method, properties, body: asyncio.run(callback(ch, method, properties, body)), auto_ack=True)
+    channel.start_consuming()

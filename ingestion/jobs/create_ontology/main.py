@@ -1,4 +1,7 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import logging
+import os
 import threading
 
 from kafka import KafkaConsumer
@@ -6,7 +9,10 @@ from pyflink.common import WatermarkStrategy, Encoder, Types
 from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode
 from pyflink.datastream.connectors.file_system import FileSource, StreamFormat, FileSink, OutputFileConfig, RollingPolicy
 
-from src.helpers.helpers import send_create_ontology_event
+from src.helpers.helpers import fetch_entity_details
+
+logger = logging.getLogger(__name__)
+
 
 # Set up Flink environment
 execution_env = StreamExecutionEnvironment.get_execution_environment()
@@ -14,7 +20,9 @@ execution_env.set_runtime_mode(RuntimeExecutionMode.BATCH)
 execution_env.set_parallelism(1)
 
 def process_text(text):
-    asyncio.run(send_create_ontology_event(text))
+    num_threads = os.cpu_count() or 10
+    with ThreadPoolExecutor(max_workers=num_threads) as thread_pool:
+        asyncio.run(fetch_entity_details(text, thread_pool))
     return text
 
 # Define the process_data function
@@ -67,10 +75,14 @@ def consume_kafka_messages():
         auto_offset_reset='earliest'
     )
     for message in consumer:
-        print(f"Received message: {message.value.decode('utf-8')}")
         kafka_data = [message.value.decode('utf-8')]
-        process_data(kafka_data=kafka_data)
+        print(f"Received message: {message.value.decode('utf-8')}")
+        # process_data(kafka_data=kafka_data)
 
-# Start Kafka consumer in a separate thread
-kafka_thread = threading.Thread(target=consume_kafka_messages)
-kafka_thread.start()
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    try:
+        consume_kafka_messages()
+    except KeyboardInterrupt:
+        print("Kafka consumer stopped.")
+
