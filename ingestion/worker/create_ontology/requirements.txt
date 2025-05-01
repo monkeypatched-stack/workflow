@@ -1,1 +1,3 @@
+pika
 kafka-python
+python-dotenv

@@ -1,66 +1,73 @@
-
 import asyncio
 import json
 import logging
 import os
-import threading
 from dotenv import load_dotenv
 import websockets
 import pika
-import sys
-
-try:
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='localhost'))
-    channel = connection.channel()
-    channel.queue_declare(queue='task_queue', durable=True)
-except pika.exceptions.AMQPConnectionError as e:
-    logging.error(f"Failed to connect to RabbitMQ: {e}")
-    sys.exit(1)
-
-
-
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
+
+HOST = os.getenv("WEBSOCKET_HOST", "localhost")
+PORT = int(os.getenv("WEBSOCKET_PORT", 6789))
+
+load_dotenv()  # Load variables from .env
 
 logging.basicConfig(level=logging.INFO)
 
-HOST =  os.getenv("WEBSOCKET_HOST", "localhost")
-PORT = os.getenv("WEBSOCKET_PORT", 6789)
+RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")  # Default fallback
+
+
+async def keep_alive(websocket, interval=30):
+    while True:
+        try:
+            await websocket.ping()
+            await asyncio.sleep(interval)
+        except websockets.exceptions.ConnectionClosed:
+            break
+
 
 async def handle_client(websocket):
     logging.info(f"New connection from {websocket.remote_address}")
+
+    try:
+        connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host=RABBIT_HOST)  # or 'localhost'
+        )
+        channel = connection.channel()
+        channel.queue_declare(queue='task_queue', durable=True)
+    except pika.exceptions.AMQPConnectionError as e:
+        logging.error(f"Failed to connect to RabbitMQ: {e}")
+        await websocket.close()
+        return
+
+    keepalive_task = asyncio.create_task(keep_alive(websocket))
+
     try:
         async for message in websocket:
-            print(message)
-            if "customer_name" in message and "document_name" in message:
-                # publish the event to rabbit mq
-                channel.basic_publish(
-                exchange='',
-                routing_key='task_queue',
-                body=message,
-                properties=pika.BasicProperties(
-                    delivery_mode=pika.DeliveryMode.Persistent
-                ))
-                logging.info("Event published successfully")
-            else:
-                logging.info("Invalid message format. Expected keys: customer_name, document_name")
-        logging.info("Client disconnected")
-    except json.JSONDecodeError as e:
-        logging.error(f"JSON decode error: {e}")
-    except websockets.exceptions.InvalidMessage as e:
-        logging.error(f"Invalid message: {e}")
-    except websockets.exceptions.ConnectionClosedOK as e:
-        logging.error(f"Connection closed OK: {e}")
-    except websockets.exceptions.ConnectionClosedError as e:
-        logging.error(f"Connection closed with error: {e}")
-    except websockets.exceptions.ConnectionClosedOK as e:
-        logging.error(f"Connection closed OK: {e}")
-    except websockets.exceptions.ConnectionClosedError as e:
-        logging.error(f"Connection closed with error: {e}")
+            logging.info(f"Received message: {message}")
+            try:
+                data = json.loads(message)
+                if "customer_name" in data and "document_name" in data:
+                    channel.basic_publish(
+                        exchange='',
+                        routing_key='task_queue',
+                        body=message,
+                        properties=pika.BasicProperties(
+                            delivery_mode=pika.DeliveryMode.Persistent
+                        ))
+                    logging.info("Event published successfully")
+                else:
+                    logging.info("Invalid message format. Expected keys: customer_name, document_name")
+            except json.JSONDecodeError as e:
+                logging.error(f"JSON decode error: {e}")
+    except websockets.exceptions.ConnectionClosed as e:
+        logging.info(f"Connection closed: {e}")
     finally:
+        keepalive_task.cancel()
         logging.info("Client disconnected")
-        if 'connection' in locals() and connection.is_open:
+        if connection and connection.is_open:
             connection.close()
 
 
@@ -69,6 +76,5 @@ async def main():
     logging.info(f"WebSocket server running on ws://{HOST}:{PORT}")
     await server.wait_closed()
 
-# Run the server
 if __name__ == "__main__":
     asyncio.run(main())

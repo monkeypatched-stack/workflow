@@ -1,11 +1,20 @@
 #!/usr/bin/env python
+import logging
+import os
+from dotenv import load_dotenv
 import pika
 import time
 import asyncio
 
+load_dotenv()  # Load variables from .env
+
+logging.basicConfig(level=logging.INFO)
+
+RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")  # Default fallback
+
 # create the connection
 connection = pika.BlockingConnection(
-    pika.ConnectionParameters(host='localhost'))
+    pika.ConnectionParameters(host=RABBIT_HOST))
 
 # declare the channel 
 channel = connection.channel()

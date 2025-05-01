@@ -1,14 +1,22 @@
 #!/usr/bin/env python
 import json
 import logging
+import os
+from dotenv import load_dotenv
 import pika
 import time
 
 from src.helpers.helpers import create_ontology_message_handler
 
+load_dotenv()  # Load variables from .env
+
+logging.basicConfig(level=logging.INFO)
+
+RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")  # Default fallback
+
 try:
     connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='localhost'))
+        pika.ConnectionParameters(host=str(RABBIT_HOST)))
     channel = connection.channel()
 
     channel.queue_declare(queue='task_queue', durable=True)

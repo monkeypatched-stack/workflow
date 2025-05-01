@@ -2,7 +2,7 @@
 def get_the_index_retrieval_prompt(pdf_text):
     PROMPT = f""" Using {pdf_text} as context, extract the headings and subheadings.
         - Extract the main subject and its attributes with the appropriate names.
-        - Ensure that the names use the appropriate manufacturing and legal terms for the main subject and attributes.
+        - Ensure that the names use the appropriate electrical ans energy industry terms and legal terms for the main subject and attributes.
         - Validate the main subject name and attribute name against a predefined legal and manufacturing lexicon to ensure correctness.
         - If the names do not match the lexicon, attempt to infer the correct term based on context.
         - split by comma and ensure that the names are not generic terms or abbreviations.
@@ -72,10 +72,8 @@ def get_ontology_prompt(content):
         1. **Extract the Entities:**  
         - Extract the following as entities:
             - Business names
-            - Bullet points
-            - Relevant business vocabulary.
-            - Main Subject 
-            - Attributes of the Main Subject
+            - Relevant business vocabulary
+            - Main Subject
         - Split the above by comma and ensure that the names are not generic terms or abbreviations.
         - for kow-how replace with know_how
         - Ensure that the names do not contain any special characters for example replace `-` with `_`.
@@ -83,8 +81,8 @@ def get_ontology_prompt(content):
         - Ensure no important information is lost by processing each clause individually.
         - Ensure that the `type` field is correctly populated with the same data as `name`.
         - For each entities ensure that the name and type are not empty.
-        - Ensure that the `name` field aligns with terminology commonly used in manufacturing and legal contexts.
-        - Validate the `name` field against a predefined manufacturing and legal lexicon to ensure correctness.
+        - Ensure that the `name` field aligns with terminology commonly used in use the appropriate electrical ans energy industry and legal contexts.
+        - Validate the `name` field against a predefined use the appropriate electrical ans energy industry and legal lexicon to ensure correctness.
         - If the `name` field does not match the lexicon, attempt to infer the correct term based on context.
         - Ensure that the `name` field is not a generic term or abbreviation.
         - Ensure that the `name` field is not a placeholder or temporary name.

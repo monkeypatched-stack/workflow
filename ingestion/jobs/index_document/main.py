@@ -61,17 +61,21 @@ def process_data(input_file_path=None, output_file_path=None, kafka_data=None):
     execution_env.execute("Kafka Data Processing Job")
 
 # Kafka consumer setup
-kafka_consumer = KafkaConsumer(
-    'indexing_topic',
-    bootstrap_servers='localhost:9092',
-    auto_offset_reset='earliest',
-    group_id='my-group'
-)
+def consume_kafka_messages():
+    consumer = KafkaConsumer(
+        'indexing_topic',
+        bootstrap_servers='localhost:9092',
+        group_id='create_ontology_group',
+        auto_offset_reset='earliest'
+    )
+    for message in consumer:
+        kafka_data = [message.value.decode('utf-8')]
+        print(f"Received message: {message.value.decode('utf-8')}")
+        process_data(kafka_data=kafka_data)
 
-# Consume messages and call process_data
-for kafka_message in kafka_consumer:
-    decoded_message = kafka_message.value.decode('utf-8')
-    print(f"Received: {decoded_message}")
-    kafka_data = [decoded_message]
-    process_data(kafka_data=kafka_data)
-    time.sleep(1)
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    try:
+        consume_kafka_messages()
+    except KeyboardInterrupt:
+        print("Kafka consumer stopped.")
