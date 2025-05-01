@@ -2,17 +2,26 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import logging
 import os
-import threading
-
 from kafka import KafkaConsumer
+from dotenv import load_dotenv
+
 from pyflink.common import WatermarkStrategy, Encoder, Types
 from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode
 from pyflink.datastream.connectors.file_system import FileSource, StreamFormat, FileSink, OutputFileConfig, RollingPolicy
 
 from src.helpers.helpers import fetch_entity_details
 
-logger = logging.getLogger(__name__)
+# Load environment variables
+load_dotenv()
 
+# Logging config
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+# Kafka configs from environment
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "create_ontology_topic")
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID", "create_ontology_group")
 
 # Set up Flink environment
 execution_env = StreamExecutionEnvironment.get_execution_environment()
@@ -25,9 +34,7 @@ def process_text(text):
         asyncio.run(fetch_entity_details(text, thread_pool))
     return text
 
-# Define the process_data function
 def process_data(input_file_path=None, output_file_path=None, kafka_data=None):
-    # Define the source
     if input_file_path is not None:
         data_stream = execution_env.from_source(
             source=FileSource.for_record_stream_format(StreamFormat.text_line_format(), input_file_path)
@@ -41,10 +48,8 @@ def process_data(input_file_path=None, output_file_path=None, kafka_data=None):
     else:
         raise ValueError("Either input_file_path or kafka_data must be provided.")
 
-    # Transform
     data_stream = data_stream.map(lambda text: process_text(text), output_type=Types.STRING())
 
-    # Sink
     if output_file_path is not None:
         data_stream.sink_to(
             sink=FileSink.for_row_format(
@@ -62,16 +67,13 @@ def process_data(input_file_path=None, output_file_path=None, kafka_data=None):
         print("Printing result to stdout. Use --output to specify output path.")
         data_stream.print()
 
-    # Execute
     execution_env.execute("Kafka Data Processing Job")
 
-
-# Kafka consumer setup
 def consume_kafka_messages():
     consumer = KafkaConsumer(
-        'create_ontology_topic',
-        bootstrap_servers='localhost:9092',
-        group_id='create_ontology_group',
+        KAFKA_TOPIC,
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+        group_id=KAFKA_GROUP_ID,
         auto_offset_reset='earliest'
     )
     for message in consumer:
@@ -80,9 +82,7 @@ def consume_kafka_messages():
         process_data(kafka_data=kafka_data)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     try:
         consume_kafka_messages()
     except KeyboardInterrupt:
         print("Kafka consumer stopped.")
-

@@ -1,0 +1,11 @@
+apache-flink==1.18.1
+kafka-python
+python-dotenv
+pika
+boto3
+fastapi[all]
+pymupdf
+requests
+neo4j
+neomodel
+langchain
