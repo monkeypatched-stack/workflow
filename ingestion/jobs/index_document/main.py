@@ -1,15 +1,16 @@
-import argparse
+import os
+from dotenv import load_dotenv
 import asyncio
-import json
 import logging
-import sys
-import time
 
 from kafka import KafkaConsumer
 from pyflink.common import WatermarkStrategy, Encoder, Types
 from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode
 from pyflink.datastream.connectors.file_system import FileSource, StreamFormat, FileSink, OutputFileConfig, RollingPolicy
 from src.helpers.helpers import send_index_document_event
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Set up Flink environment
 execution_env = StreamExecutionEnvironment.get_execution_environment()
@@ -20,9 +21,7 @@ def process_text(text):
     asyncio.run(send_index_document_event(text))
     return text
 
-# Define the process_data function
 def process_data(input_file_path=None, output_file_path=None, kafka_data=None):
-    # Define the source
     if input_file_path is not None:
         data_stream = execution_env.from_source(
             source=FileSource.for_record_stream_format(StreamFormat.text_line_format(), input_file_path)
@@ -31,15 +30,13 @@ def process_data(input_file_path=None, output_file_path=None, kafka_data=None):
             source_name="file_source"
         )
     elif kafka_data is not None:
-        print("Executing process_data example with data consumed from Kafka consumer")
+        print("Processing data from Kafka")
         data_stream = execution_env.from_collection(kafka_data, type_info=Types.STRING())
     else:
         raise ValueError("Either input_file_path or kafka_data must be provided.")
 
-    # Transform
     data_stream = data_stream.map(lambda text: process_text(text), output_type=Types.STRING())
 
-    # Sink
     if output_file_path is not None:
         data_stream.sink_to(
             sink=FileSink.for_row_format(
@@ -54,17 +51,18 @@ def process_data(input_file_path=None, output_file_path=None, kafka_data=None):
             .build()
         )
     else:
-        print("Printing result to stdout. Use --output to specify output path.")
+        print("Printing result to stdout.")
         data_stream.print()
 
-    # Execute
     execution_env.execute("Kafka Data Processing Job")
 
-# Kafka consumer setup
 def consume_kafka_messages():
+    kafka_topic = os.getenv('KAFKA_TOPIC', 'indexing_topic')
+    kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
+
     consumer = KafkaConsumer(
-        'indexing_topic',
-        bootstrap_servers='localhost:9092',
+        kafka_topic,
+        bootstrap_servers=kafka_servers,
         group_id='create_ontology_group',
         auto_offset_reset='earliest'
     )
