@@ -1,0 +1,314 @@
+version: "3.9"
+
+services:
+  rabbit1:
+    image: rabbitmq:3-management
+    hostname: rabbit1
+    container_name: rabbit1
+    environment:
+      RABBITMQ_ERLANG_COOKIE: "secret string"
+      RABBITMQ_NODENAME: rabbit1
+    volumes:
+      - ./rabbitmq.config:/etc/rabbitmq/rabbitmq.config
+      - ./definitions.json:/etc/rabbitmq/definitions.json
+    networks:
+      - ingestion-pipeline
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbit2:
+    image: rabbitmq:3-management
+    hostname: rabbit2
+    container_name: rabbit2
+    depends_on:
+      - rabbit1
+    environment:
+      RABBITMQ_ERLANG_COOKIE: "secret string"
+      RABBITMQ_NODENAME: rabbit2
+    volumes:
+      - ./rabbitmq.config:/etc/rabbitmq/rabbitmq.config
+      - ./definitions.json:/etc/rabbitmq/definitions.json
+    networks:
+      - ingestion-pipeline
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbit3:
+    image: rabbitmq:3-management
+    hostname: rabbit3
+    container_name: rabbit3
+    depends_on:
+      - rabbit1
+    environment:
+      RABBITMQ_ERLANG_COOKIE: "secret string"
+      RABBITMQ_NODENAME: rabbit3
+    volumes:
+      - ./rabbitmq.config:/etc/rabbitmq/rabbitmq.config
+      - ./definitions.json:/etc/rabbitmq/definitions.json
+    networks:
+      - ingestion-pipeline
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    hostname: zookeeper
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - ingestion-pipeline
+
+  kafka:
+    image: apache/kafka:latest
+    hostname: broker
+    container_name: broker
+    ports:
+      - "9092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092
+      KAFKA_LISTENERS: PLAINTEXT://broker:29092,CONTROLLER://broker:29093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker:29093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test: ["CMD", "bash", "-c", "nc -z broker 29092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ingestion-pipeline
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    hostname: qdrant
+    container_name: qdrant
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - ingestion-pipeline
+
+  neo4j:
+    image: neo4j:5.19
+    hostname: graph-db
+    container_name: graph-db
+    environment:
+      NEO4J_AUTH: neo4j/neo4jpassword
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - ingestion-pipeline
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  jobmanager:
+    image: flink:latest
+    hostname: flink_jobmanager
+    container_name: flink_jobmanager
+    command: jobmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=localhost
+    networks:
+      - ingestion-pipeline
+
+  taskmanager:
+    image: flink:latest
+    hostname: flink_taskmanager
+    container_name: flink_taskmanager
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=localhost
+    networks:
+      - ingestion-pipeline
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    hostname: server
+    container_name: server
+    environment:
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ./server:/app
+    ports:
+    - "6789:6789"  # Exposes WebSocket server
+    restart: unless-stopped
+    networks:
+      - ingestion-pipeline
+
+  router:
+    build:
+      context: ./router
+      dockerfile: Dockerfile
+    hostname: router
+    container_name: router
+    environment:
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ./router:/app
+    depends_on:
+      - rabbit1
+      - server
+    restart: unless-stopped
+    networks:
+      - ingestion-pipeline
+
+  ontology-client:
+    build:
+      context: ./clients/create_ontology
+      dockerfile: Dockerfile
+    hostname: ontology-client
+    container_name: ontology-client
+    environment:
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ./clients/create_ontology:/app
+    depends_on:
+      - rabbit1
+      - server
+      - router
+    restart: unless-stopped
+    networks:
+      - ingestion-pipeline
+
+  indexing-client:
+    build:
+      context: ./clients/index_documents
+      dockerfile: Dockerfile
+    hostname: indexing-client
+    container_name: indexing-client
+    environment:
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ./clients/index_documents:/app
+    depends_on:
+      - rabbit1
+      - server
+      - router
+    restart: unless-stopped
+    networks:
+      - ingestion-pipeline
+
+  ontology-worker:
+    build:
+      context: ./worker/create_ontology
+      dockerfile: Dockerfile
+    hostname: ontology-worker
+    container_name: ontology-worker
+    environment:
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ./worker/create_ontology:/app
+    depends_on:
+      - rabbit1
+      - server
+      - router
+      - ontology-client
+      - kafka
+    restart: unless-stopped
+    networks:
+      - ingestion-pipeline
+
+  indexing-worker:
+    build:
+      context: ./worker/index_documents
+      dockerfile: Dockerfile
+    hostname: indexing-worker
+    container_name: indexing-worker
+    environment:
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ./worker/index_documents:/app
+    depends_on:
+      - rabbit1
+      - server
+      - router
+      - indexing-client
+      - kafka
+    restart: unless-stopped
+    networks:
+      - ingestion-pipeline
+
+
+  ontology-job:
+    build:
+      context: ./jobs/create_ontology
+      dockerfile: Dockerfile
+    hostname: ontology-job
+    container_name: ontology-job
+    environment:
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+    volumes: []
+    depends_on:
+      - rabbit1
+      - server
+      - router
+      - ontology-client
+      - ontology-worker
+      - kafka
+    restart: unless-stopped
+    networks:
+      - ingestion-pipeline
+
+    
+  indexing-job:
+    build:
+      context: ./jobs/index_document
+      dockerfile: Dockerfile
+    hostname: indexing-job
+    container_name: indexing-job
+    environment:
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+    volumes: []
+    depends_on:
+      - rabbit1
+      - server
+      - router
+      - indexing-client
+      - indexing-worker
+      - kafka
+    restart: unless-stopped
+    networks:
+      - ingestion-pipeline
+
+volumes:
+  qdrant_storage:
+  neo4j_data:
+
+networks:
+  ingestion-pipeline:
+    driver: bridge

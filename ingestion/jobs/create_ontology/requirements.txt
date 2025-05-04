@@ -9,3 +9,4 @@ requests
 neo4j
 neomodel
 langchain
+google-cloud-bigquery-storage

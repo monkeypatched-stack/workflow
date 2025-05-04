@@ -22,6 +22,10 @@ S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
 logging.basicConfig(level=logging.INFO)
 
+
+RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")  # Default fallback
+logging.info(RABBIT_HOST)
+
 # S3 Client Setup
 s3_client = boto3.client(
     "s3",
@@ -30,9 +34,9 @@ s3_client = boto3.client(
     region_name=AWS_REGION,
 )
 
-# add a owrker queue
+# add a worker queue
 connection = pika.BlockingConnection(
-    pika.ConnectionParameters(host='localhost'))
+    pika.ConnectionParameters(host=RABBIT_HOST))
 channel = connection.channel()
 
 channel.exchange_declare(exchange='task_exchange',exchange_type='direct')
@@ -45,7 +49,7 @@ async def publish_messages(pdf_text):
         for chunk in chunks:
             # Create a new channel for each publish
             connection = pika.BlockingConnection(
-                pika.ConnectionParameters(host='localhost')
+                pika.ConnectionParameters(host=RABBIT_HOST)
             )
             channel = connection.channel()
             channel.exchange_declare(exchange='task_exchange', exchange_type='direct')
@@ -67,7 +71,6 @@ async def publish_messages(pdf_text):
                     delivery_mode=2  # Make message persistent
                 )
             )
-            connection.close()
     except Exception as e:
         logging.error(f"Failed to publish messages: {e}")
 

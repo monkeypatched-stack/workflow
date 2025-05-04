@@ -11,6 +11,7 @@ load_dotenv()  # Load variables from .env
 logging.basicConfig(level=logging.INFO)
 
 RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")  # Default fallback
+logging.info(RABBIT_HOST)
 
 # create the connection
 connection = pika.BlockingConnection(
@@ -38,16 +39,16 @@ async def callback(ch, method, body):
     time.sleep(body.count(b'.'))
     # must process the uploaded document 
     message = body.decode()
+    logging.info(message)
     channel.basic_publish(
             exchange='',
             routing_key='create_ontology_task',
             body=message,
             properties=pika.BasicProperties(delivery_mode=2)) 
-    print(message)
 
 channel.basic_qos(prefetch_count=1)
 channel.basic_consume(
-    queue=queue_name,
+    queue='create_ontology_task_queue',
     on_message_callback=lambda ch, method, properties, body: asyncio.run(callback(ch, method, body)),
     auto_ack=True
 )

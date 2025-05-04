@@ -17,6 +17,11 @@ execution_env = StreamExecutionEnvironment.get_execution_environment()
 execution_env.set_runtime_mode(RuntimeExecutionMode.BATCH)
 execution_env.set_parallelism(1)
 
+# Kafka configs from environment
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "create_ontology_topic")
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "ingestion-kafka:9092")
+KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID", "create_ontology_group")
+
 def process_text(text):
     asyncio.run(send_index_document_event(text))
     return text
@@ -57,13 +62,10 @@ def process_data(input_file_path=None, output_file_path=None, kafka_data=None):
     execution_env.execute("Kafka Data Processing Job")
 
 def consume_kafka_messages():
-    kafka_topic = os.getenv('KAFKA_TOPIC', 'indexing_topic')
-    kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
-
     consumer = KafkaConsumer(
-        kafka_topic,
-        bootstrap_servers=kafka_servers,
-        group_id='create_ontology_group',
+        KAFKA_TOPIC,
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+        group_id=KAFKA_GROUP_ID,
         auto_offset_reset='earliest'
     )
     for message in consumer:

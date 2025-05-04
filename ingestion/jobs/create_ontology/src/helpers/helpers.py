@@ -97,6 +97,7 @@ async def extract_ontology(pdf_text, thread_pool):
 async def fetch_entity_details(pdf_text, thread_pool):
     chunks = split_content(pdf_text, 500)
     for chunk in chunks:
+        print("--------------------------------------")
         await extract_ontology(chunk, thread_pool)
     print(f"Processed {len(chunks)} chunks successfully.")
 

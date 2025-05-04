@@ -16,8 +16,7 @@ load_dotenv()  # Load variables from .env
 
 logging.basicConfig(level=logging.INFO)
 
-RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")  # Default fallback
-
+RABBIT_HOST = os.getenv("RABBIT_HOST", "rabbit1")  # Default fallback
 
 async def keep_alive(websocket, interval=30):
     while True:

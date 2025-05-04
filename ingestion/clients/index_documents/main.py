@@ -1,12 +1,21 @@
 #!/usr/bin/env python
 import logging
+import os
+from dotenv import load_dotenv
 import pika
 import time
 import asyncio
 
+load_dotenv()  # Load variables from .env
+
+logging.basicConfig(level=logging.INFO)
+
+RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")  # Default fallback
+logging.info(RABBIT_HOST)
+
 # create the connection
 connection = pika.BlockingConnection(
-    pika.ConnectionParameters(host='localhost'))
+    pika.ConnectionParameters(host=RABBIT_HOST))
 
 # create the excahnge
 channel = connection.channel()
@@ -23,9 +32,6 @@ queue_name = result.method.queue
 
 # bind the queue
 channel.queue_bind(exchange='task_exchange', queue=queue_name, routing_key='index_document')
-
-
-
 
 print(' [*] Waiting for messages. To exit press CTRL+C')
 

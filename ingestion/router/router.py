@@ -13,7 +13,7 @@ load_dotenv()  # Load variables from .env
 logging.basicConfig(level=logging.INFO)
 
 RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")  # Default fallback
-
+logging.info(RABBIT_HOST)
 try:
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(host=str(RABBIT_HOST)))
@@ -27,8 +27,10 @@ try:
             time.sleep(body.count(b'.'))
             # must process the uploaded document 
             message = body.decode()
+            logging.info(message)
             if "customer_name" in message and "document_name" in message:
                 document_name = json.loads(message)["document_name"]
+                logging.info(document_name)
                 create_ontology_message_handler(document_name)
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:

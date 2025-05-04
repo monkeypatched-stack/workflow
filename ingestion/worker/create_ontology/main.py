@@ -9,13 +9,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Read config from environment variables
-RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
+RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'rabbit1')
 RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', 5672))
 RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
 RABBITMQ_PASS = os.getenv('RABBITMQ_PASS', 'guest')
 RABBITMQ_QUEUE = os.getenv('RABBITMQ_QUEUE', 'create_ontology_task_queue')
 
-KAFKA_BOOTSTRAP = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
+KAFKA_BOOTSTRAP = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'broker:9092')
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC', 'create_ontology_topic')
 
 # RabbitMQ connection
