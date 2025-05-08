@@ -15,7 +15,7 @@ def post_to_llm(message):
             "Content-Type": "application/json"
         },
         data=json.dumps({
-                "model": "openai/o4-mini",
+                "model": "mistral/ministral-8b",
                 "messages": [
                     {
                         "role": "user",

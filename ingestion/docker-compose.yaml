@@ -124,6 +124,28 @@ services:
       timeout: 5s
       retries: 5
 
+  nats:
+    image: nats:latest
+    hostname: nats-queue
+    container_name: nats-queue
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    restart: unless-stopped
+    command: ["-js"]
+
+  redis:
+    image: redis:latest
+    hostname: redis-cache
+    container_name: redis-cache
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--requirepass", "MyStrongPassword"]
+    volumes: []
+    networks:
+      - ingestion-pipeline
+
   jobmanager:
     image: flink:latest
     hostname: flink_jobmanager
@@ -147,9 +169,7 @@ services:
       - ingestion-pipeline
 
   server:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
+    image: 390200632117.dkr.ecr.us-east-1.amazonaws.com/server
     hostname: server
     container_name: server
     environment:
@@ -164,9 +184,7 @@ services:
       - ingestion-pipeline
 
   router:
-    build:
-      context: ./router
-      dockerfile: Dockerfile
+    image: 390200632117.dkr.ecr.us-east-1.amazonaws.com/router
     hostname: router
     container_name: router
     environment:
@@ -182,9 +200,7 @@ services:
       - ingestion-pipeline
 
   ontology-client:
-    build:
-      context: ./clients/create_ontology
-      dockerfile: Dockerfile
+    image: 390200632117.dkr.ecr.us-east-1.amazonaws.com/create-ontology-client
     hostname: ontology-client
     container_name: ontology-client
     environment:
@@ -201,9 +217,7 @@ services:
       - ingestion-pipeline
 
   indexing-client:
-    build:
-      context: ./clients/index_documents
-      dockerfile: Dockerfile
+    image: 390200632117.dkr.ecr.us-east-1.amazonaws.com/index-document-client
     hostname: indexing-client
     container_name: indexing-client
     environment:
@@ -220,9 +234,7 @@ services:
       - ingestion-pipeline
 
   ontology-worker:
-    build:
-      context: ./worker/create_ontology
-      dockerfile: Dockerfile
+    image: 390200632117.dkr.ecr.us-east-1.amazonaws.com/create-ontology-worker
     hostname: ontology-worker
     container_name: ontology-worker
     environment:
@@ -241,9 +253,7 @@ services:
       - ingestion-pipeline
 
   indexing-worker:
-    build:
-      context: ./worker/index_documents
-      dockerfile: Dockerfile
+    image: 390200632117.dkr.ecr.us-east-1.amazonaws.com/index-documents-worker
     hostname: indexing-worker
     container_name: indexing-worker
     environment:
@@ -261,11 +271,8 @@ services:
     networks:
       - ingestion-pipeline
 
-
   ontology-job:
-    build:
-      context: ./jobs/create_ontology
-      dockerfile: Dockerfile
+    image: 390200632117.dkr.ecr.us-east-1.amazonaws.com/ontology-job
     hostname: ontology-job
     container_name: ontology-job
     environment:
@@ -283,11 +290,8 @@ services:
     networks:
       - ingestion-pipeline
 
-    
   indexing-job:
-    build:
-      context: ./jobs/index_document
-      dockerfile: Dockerfile
+    image: 390200632117.dkr.ecr.us-east-1.amazonaws.com/index-job
     hostname: indexing-job
     container_name: indexing-job
     environment:
@@ -304,6 +308,46 @@ services:
     restart: unless-stopped
     networks:
       - ingestion-pipeline
+
+  pdf-agent:
+    image: 390200632117.dkr.ecr.us-east-1.amazonaws.com/pdf-agent
+    hostname: pdf-agent
+    container_name: pdf-agent
+    ports:
+      - "9010:9010"
+    environment:
+      PYTHONUNBUFFERED: 1
+    volumes: []
+    restart: unless-stopped
+    networks:
+      - ingestion-pipeline
+
+  pdf-loader-agent:
+    image: 390200632117.dkr.ecr.us-east-1.amazonaws.com/pdf-loader-api
+    hostname: pdf-loader-agent
+    container_name: pdf-loader-agent
+    ports:
+      - "8009:8009"
+    environment:
+      PYTHONUNBUFFERED: 1
+    volumes: []
+    restart: unless-stopped
+    networks:
+      - ingestion-pipeline
+
+  query-agent:
+    image: 390200632117.dkr.ecr.us-east-1.amazonaws.com/query-agent
+    hostname: query-agent
+    container_name: query-agent
+    ports:
+      - "9003:9003"
+    environment:
+      PYTHONUNBUFFERED: 1
+    volumes: []
+    restart: unless-stopped
+    networks:
+      - ingestion-pipeline
+
 
 volumes:
   qdrant_storage:
